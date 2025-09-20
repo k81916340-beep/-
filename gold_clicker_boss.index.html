@@ -1,0 +1,586 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>골드 클릭러 — 보스 레이드 추가판</title>
+  <style>
+    :root{
+      --bg1:#071029;--bg2:#0b1024;--accent:#f59e0b;--muted:#94a3b8;
+      --good:#10b981;--danger:#ef4444;--boss:#7c3aed;
+    }
+    *{box-sizing:border-box}
+    body{font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans KR', sans-serif;margin:0;background:linear-gradient(180deg,var(--bg1),var(--bg2));color:#e6eef8;display:flex;align-items:center;justify-content:center;padding:18px;min-height:100vh}
+    .wrap{width:100%;max-width:1100px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border:1px solid rgba(255,255,255,0.03);padding:14px;border-radius:12px}
+    .game{display:grid;grid-template-columns:1fr 380px;gap:16px}
+    .big{position:relative;padding:20px;min-height:420px;overflow:hidden}
+    .gold-display{font-size:28px;font-weight:800;color:var(--accent);margin-bottom:6px}
+    .persec{font-size:13px;color:var(--muted);margin-bottom:12px}
+    .click-btn{appearance:none;border:0;padding:20px 32px;border-radius:999px;background:linear-gradient(180deg,#ffd27a,#ffb347);color:#001219;font-weight:900;font-size:22px;cursor:pointer}
+    .controls{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+    .sidebar{padding:12px}
+    .item{display:flex;align-items:center;justify-content:space-between;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.02);margin-bottom:8px;background:rgba(255,255,255,0.01)}
+    .price{color:var(--muted);font-size:13px}
+    .buy{background:linear-gradient(180deg,#06b6d4,#0891b2);border:0;padding:8px 10px;border-radius:8px;color:white;cursor:pointer}
+    .buy:disabled{opacity:.4;cursor:not-allowed}
+    .quest{padding:8px;border:1px solid rgba(255,255,255,0.04);border-radius:8px;margin-bottom:8px;background:rgba(255,255,255,0.015)}
+    .quest.done{opacity:0.6}
+    .ach{display:flex;align-items:center;gap:8px;padding:6px;border-radius:8px;margin-bottom:6px;background:rgba(255,255,255,0.01)}
+    .ach .icon{width:28px;height:28px;display:inline-grid;place-items:center;border-radius:6px;background:rgba(255,255,255,0.02)}
+    .ach.done .icon{box-shadow:0 6px 18px rgba(255,215,0,0.18);background:linear-gradient(180deg,#fff8dc,#fff0b3);color:#222}
+    .notice{position:absolute;top:12px;left:12px;background:rgba(0,0,0,0.45);padding:6px 10px;border-radius:8px;color:var(--muted);font-size:13px}
+    /* Boss UI */
+    .boss-area{position:absolute;right:12px;top:12px;width:320px;max-width:38%;pointer-events:none}
+    .boss-card{pointer-events:auto;background:linear-gradient(180deg,rgba(124,58,237,0.12),rgba(124,58,237,0.06));border:1px solid rgba(124,58,237,0.16);padding:10px;border-radius:10px}
+    .boss-name{font-weight:800;color:var(--boss)}
+    .hp-bar{height:12px;background:rgba(255,255,255,0.06);border-radius:999px;overflow:hidden;margin-top:8px}
+    .hp-fill{height:100%;background:linear-gradient(90deg,#ff5a5a,#ffb86b);width:100%}
+    .boss-controls{display:flex;gap:8px;margin-top:8px}
+    .boss-timer{font-size:13px;color:var(--muted);margin-top:6px}
+    .bg-stage{position:absolute;inset:0;opacity:0.06;pointer-events:none;background-size:cover;transition:opacity .6s,transform .6s}
+    .floating-box{position:absolute;border-radius:12px;padding:12px 14px;background:linear-gradient(180deg,#fff9e6,#fff0c2);color:#111;font-weight:700;box-shadow:0 10px 30px rgba(0,0,0,0.5);cursor:pointer}
+    .gold-fx{position:absolute;pointer-events:none;font-weight:900}
+    @media(max-width:980px){.game{grid-template-columns:1fr;}.boss-area{position:static;width:100%}}
+  </style>
+</head>
+<body>
+  <div class="wrap card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <h2 style="margin:0">골드 클릭러 — 보스 레이드판</h2>
+      <div style="color:var(--muted)">보스 레이드 & 업적 아이콘 추가</div>
+    </div>
+
+    <div class="game">
+      <div class="big" id="playArea">
+        <div class="bg-stage" id="bgStage"></div>
+
+        <div class="notice" id="notice">환생포인트: 0</div>
+        <div class="gold-display" id="gold">Gold: 0</div>
+        <div class="persec" id="perSec">초당: 0</div>
+        <button class="click-btn" id="clickBtn">클릭해서 골드 얻기</button>
+
+        <div class="controls">
+          <button class="buy" id="saveBtn">저장</button>
+          <button class="buy" id="loadBtn">불러오기</button>
+          <button class="buy" id="resetBtn">초기화</button>
+          <button class="buy" id="marketBtn">환생 상점</button>
+        </div>
+
+        <div style="margin-top:12px;color:var(--muted);font-size:13px;max-width:680px;text-align:center">
+          보스 레이드가 추가되었습니다. 보스가 출현하면 클릭으로 함께 공격해 보스를 처치하세요!
+        </div>
+
+        <div style="position:relative;height:1px"></div>
+
+        <div id="fxLayer"></div>
+
+        <!-- Boss UI (hidden until spawn) -->
+        <div class="boss-area" id="bossArea" style="display:none">
+          <div class="boss-card" id="bossCard">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <div class="boss-name" id="bossName">보스</div>
+                <div class="boss-timer" id="bossTimer">남은 시간: --</div>
+              </div>
+              <div style="text-align:right">
+                <div style="font-weight:800;color:#fff" id="bossReward">보상: --G</div>
+                <div style="font-size:12px;color:var(--muted)">환생포인트: <span id="bossPrestige">--</span></div>
+              </div>
+            </div>
+            <div class="hp-bar" style="margin-top:10px">
+              <div class="hp-fill" id="bossHp" style="width:100%"></div>
+            </div>
+            <div class="boss-controls">
+              <button class="buy" id="attackBossBtn">보스 공격</button>
+              <button class="buy" id="giveUpBossBtn">포기</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="sidebar">
+        <div class="card" style="padding:12px;margin-bottom:12px">
+          <h3 style="margin:0 0 8px 0">상점</h3>
+          <div class="item">
+            <div>
+              <strong>자동 채광기</strong><div class="price">초당 +1 골드</div>
+            </div>
+            <div style="text-align:right">
+              <div class="price" id="autoCount">보유: 0</div>
+              <button class="buy" id="buyAuto">구매 (<span id="autoPrice">10</span>G)</button>
+            </div>
+          </div>
+
+          <div class="item">
+            <div>
+              <strong>슈퍼 드릴</strong><div class="price">초당 +10 골드</div>
+            </div>
+            <div style="text-align:right">
+              <div class="price" id="drillCount">보유: 0</div>
+              <button class="buy" id="buyDrill">구매 (<span id="drillPrice">250</span>G)</button>
+            </div>
+          </div>
+
+          <div class="item">
+            <div>
+              <strong>강화 장비</strong><div class="price">클릭당 +1 골드</div>
+            </div>
+            <div style="text-align:right">
+              <div class="price" id="powerCount">레벨: 0</div>
+              <button class="buy" id="buyPower">구매 (<span id="powerPrice">25</span>G)</button>
+            </div>
+          </div>
+
+          <div class="item">
+            <div>
+              <strong>크리티컬 업그레이드</strong><div class="price">크리티컬 +5%</div>
+            </div>
+            <div style="text-align:right">
+              <button class="buy" id="buyCrit">구매 (<span id="critPrice">80</span>G)</button>
+            </div>
+          </div>
+
+          <div style="height:6px"></div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+            <div class="small" id="saved">저장 상태: -</div>
+            <div class="small">v3.1</div>
+          </div>
+        </div>
+
+        <div class="card" style="padding:12px;margin-bottom:12px">
+          <h3 style="margin:0 0 8px 0">퀘스트</h3>
+          <div id="questList"></div>
+        </div>
+
+        <div class="card" style="padding:12px;margin-bottom:12px">
+          <h3 style="margin:0 0 8px 0">업적</h3>
+          <div id="achList"></div>
+        </div>
+
+        <div class="card" style="padding:12px">
+          <h3 style="margin:0 0 8px 0">환생</h3>
+          <div>환생 포인트: <strong id="prestigePts">0</strong></div>
+          <div style="height:8px"></div>
+          <button class="buy" id="doPrestige">환생하기</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // --- 상태 ---
+    const state = {
+      gold:0, clickPower:1, autoCount:0, drillCount:0, critLevel:0, critChance:0,
+      totalClicks:0, totalGold:0, startTime:Date.now(),
+      quests:[
+        {id:1,desc:"골드 500 모으기",goal:500,reward:200,done:false},
+        {id:2,desc:"클릭 200번 하기",goal:200,reward:150,done:false},
+        {id:3,desc:"슈퍼 드릴 1개 구매",goal:"drill1",reward:300,done:false}
+      ],
+      achievements:[
+        {id:'a1',desc:'첫 클릭',reward:20,done:false,icon:'⭐'},
+        {id:'a2',desc:'골드 10k',reward:1000,done:false,icon:'🏆'},
+        {id:'a3',desc:'클릭 1k',reward:500,done:false,icon:'💎'},
+        {id:'a4',desc:'보스 킬 1회',reward:300,done:false,icon:'🐉'}
+      ],
+      prestigePts:0, prestigeCount:0,
+      boss:null // will hold boss object when spawned
+    };
+
+    // --- 가격 함수 ---
+    const priceForAuto = n => Math.floor(10 * Math.pow(1.6, n));
+    const priceForDrill = n => Math.floor(250 * Math.pow(1.5, n));
+    const priceForPower = n => Math.floor(25 * Math.pow(1.7, n));
+    const priceForCrit = n => 80 * (n+1);
+
+    // --- 엘리먼트 ---
+    const goldEl = document.getElementById('gold');
+    const perSecEl = document.getElementById('perSec');
+    const clickBtn = document.getElementById('clickBtn');
+    const buyAutoBtn = document.getElementById('buyAuto');
+    const buyDrillBtn = document.getElementById('buyDrill');
+    const buyPowerBtn = document.getElementById('buyPower');
+    const buyCritBtn = document.getElementById('buyCrit');
+    const autoPriceEl = document.getElementById('autoPrice');
+    const powerPriceEl = document.getElementById('powerPrice');
+    const drillPriceEl = document.getElementById('drillPrice');
+    const critPriceEl = document.getElementById('critPrice');
+    const autoCountEl = document.getElementById('autoCount');
+    const drillCountEl = document.getElementById('drillCount');
+    const powerCountEl = document.getElementById('powerCount');
+    const savedEl = document.getElementById('saved');
+    const totalClicksEl = document.getElementById('totalClicks');
+    const totalGoldEl = document.getElementById('totalGold') || document.createElement('div');
+    const playTimeEl = document.getElementById('playTime') || document.createElement('div');
+    const questListEl = document.getElementById('questList');
+    const achListEl = document.getElementById('achList');
+    const eventLog = document.getElementById('eventLog') || {textContent:''};
+    const fxLayer = document.getElementById('fxLayer');
+    const notice = document.getElementById('notice');
+    const bgStage = document.getElementById('bgStage');
+    const prestigePtsEl = document.getElementById('prestigePts');
+    const bossArea = document.getElementById('bossArea');
+    const bossNameEl = document.getElementById('bossName');
+    const bossHpEl = document.getElementById('bossHp');
+    const bossTimerEl = document.getElementById('bossTimer');
+    const bossRewardEl = document.getElementById('bossReward');
+    const bossPrestigeEl = document.getElementById('bossPrestige');
+    const attackBossBtn = document.getElementById('attackBossBtn');
+    const giveUpBossBtn = document.getElementById('giveUpBossBtn');
+
+    // --- 헬퍼 ---
+    function fmt(n){ return Math.floor(n); }
+    function spawnFloating(text,x=50,y=50,color=null){
+      const el = document.createElement('div');
+      el.className = 'gold-fx';
+      el.style.left = x + '%';
+      el.style.top = y + '%';
+      el.style.transform = 'translate(-50%,-50%)';
+      el.style.fontSize = '16px';
+      el.textContent = text;
+      if(color) el.style.color = color;
+      fxLayer.appendChild(el);
+      let t=0;
+      const id = setInterval(()=>{ t++; el.style.top = (y - t*0.3) + '%'; el.style.opacity = 1 - t/60; if(t>60){ clearInterval(id); el.remove(); } },16);
+    }
+
+    // --- UI 갱신 ---
+    function refreshUI(){
+      goldEl.textContent = `Gold: ${fmt(state.gold)}`;
+      const perSec = state.autoCount*1 + state.drillCount*10;
+      perSecEl.textContent = `초당: ${fmt(perSec)}`;
+      autoPriceEl.textContent = priceForAuto(state.autoCount);
+      drillPriceEl.textContent = priceForDrill(state.drillCount);
+      powerPriceEl.textContent = priceForPower(state.clickPower-1);
+      critPriceEl.textContent = priceForCrit(state.critLevel);
+      autoCountEl.textContent = `보유: ${state.autoCount}`;
+      drillCountEl.textContent = `보유: ${state.drillCount}`;
+      powerCountEl.textContent = `레벨: ${state.clickPower-1}`;
+      prestigePtsEl.textContent = state.prestigePts;
+      savedEl.textContent = '저장됨';
+
+      // crit chance
+      state.critChance = Math.min(100, state.critLevel * 5);
+
+      renderQuests();
+      renderAchievements();
+      updateBackground();
+
+      // boss UI
+      if(state.boss && state.boss.alive){
+        bossArea.style.display = 'block';
+        bossNameEl.textContent = state.boss.name;
+        const pct = Math.max(0, (state.boss.hp / state.boss.maxHp)*100);
+        bossHpEl.style.width = pct + '%';
+        bossTimerEl.textContent = '남은 시간: ' + Math.max(0, Math.ceil((state.boss.endsAt - Date.now())/1000)) + 's';
+        bossRewardEl.textContent = `보상: ${state.boss.reward}G`;
+        bossPrestigeEl.textContent = state.boss.prestigeReward;
+      } else {
+        bossArea.style.display = 'none';
+      }
+    }
+
+    // --- 퀘스트/업적 ---
+    function renderQuests(){
+      questListEl.innerHTML = '';
+      state.quests.forEach(q=>{
+        const d = document.createElement('div');
+        d.className = 'quest' + (q.done ? ' done' : '');
+        d.textContent = q.desc + (q.done ? ' (완료)' : '');
+        questListEl.appendChild(d);
+      });
+    }
+
+    function renderAchievements(){
+      achListEl.innerHTML = '';
+      state.achievements.forEach(a=>{
+        const d = document.createElement('div');
+        d.className = 'ach' + (a.done ? ' done' : '');
+        const icon = document.createElement('div');
+        icon.className = 'icon';
+        icon.textContent = a.icon || '🏅';
+        d.appendChild(icon);
+        const txt = document.createElement('div');
+        txt.textContent = a.desc + (a.done ? ' (달성)' : '');
+        d.appendChild(txt);
+        achListEl.appendChild(d);
+      });
+    }
+
+    function checkQuestsAndAch(){
+      // quests
+      state.quests.forEach(q=>{
+        if(!q.done){
+          if(typeof q.goal === 'number' && state.totalGold >= q.goal){
+            state.gold += q.reward; q.done = true; spawnFloating(`퀘스트 +${q.reward}`, 50,60,'#ffd700');
+          }
+          if(q.goal === 'drill1' && state.drillCount >= 1){ state.gold += q.reward; q.done = true; spawnFloating(`퀘스트 +${q.reward}`,50,60,'#ffd700'); }
+          if(q.desc.includes('클릭') && state.totalClicks >= q.goal){ state.gold += q.reward; q.done = true; spawnFloating(`퀘스트 +${q.reward}`,50,60,'#ffd700'); }
+        }
+      });
+      // achievements
+      state.achievements.forEach(a=>{
+        if(!a.done){
+          if(a.id==='a1' && state.totalClicks>=1){ a.done=true; state.gold+=a.reward; spawnFloating(`업적 ${a.desc} +${a.reward}`,40,30,'#fff'); }
+          if(a.id==='a2' && state.totalGold>=10000){ a.done=true; state.gold+=a.reward; spawnFloating(`업적 ${a.desc} +${a.reward}`,40,30,'#fff'); }
+          if(a.id==='a3' && state.totalClicks>=1000){ a.done=true; state.gold+=a.reward; spawnFloating(`업적 ${a.desc} +${a.reward}`,40,30,'#fff'); }
+          if(a.id==='a4' && a.done===false && state.boss && state.boss.kills>=1){ a.done=true; state.gold+=a.reward; spawnFloating(`업적 ${a.desc} +${a.reward}`,40,30,'#fff'); }
+        }
+      });
+    }
+
+    // --- 클릭 ---
+    clickBtn.addEventListener('click', doClick);
+    window.addEventListener('keydown', e=>{ if(e.code==='Space'){ e.preventDefault(); doClick(); } });
+
+    function doClick(){
+      let gain = state.clickPower;
+      if(Math.random()*100 < state.critChance){
+        gain *= 2;
+        spawnFloating('CRIT +' + Math.floor(gain), 60+Math.random()*20, 40+Math.random()*30, '#ffef00');
+      } else {
+        spawnFloating('+' + Math.floor(gain), 60+Math.random()*20, 40+Math.random()*30, '#ffd27a');
+      }
+      state.gold += gain;
+      state.totalGold += gain;
+      state.totalClicks++;
+      // if boss present, apply damage to boss as well when attackBoss is used or global? We'll allow attack button to deal extra damage.
+      checkQuestsAndAch();
+      refreshUI();
+    }
+
+    // --- 상점 ---
+    document.getElementById('buyAuto').addEventListener('click', ()=>{
+      const cost = priceForAuto(state.autoCount);
+      if(state.gold>=cost){ state.gold-=cost; state.autoCount++; spawnFloating('Auto +1',30+Math.random()*20,70,'#cff'); refreshUI(); }
+    });
+    document.getElementById('buyDrill').addEventListener('click', ()=>{
+      const cost = priceForDrill(state.drillCount);
+      if(state.gold>=cost){ state.gold-=cost; state.drillCount++; spawnFloating('Drill +10/sec',30+Math.random()*20,70,'#cff'); refreshUI(); }
+    });
+    document.getElementById('buyPower').addEventListener('click', ()=>{
+      const cost = priceForPower(state.clickPower-1);
+      if(state.gold>=cost){ state.gold-=cost; state.clickPower++; spawnFloating('Power +1',50+Math.random()*20,60,'#cff'); refreshUI(); }
+    });
+    document.getElementById('buyCrit').addEventListener('click', ()=>{
+      const cost = priceForCrit(state.critLevel);
+      if(state.gold>=cost){ state.gold-=cost; state.critLevel++; spawnFloating('Crit +5%',70+Math.random()*20,60,'#cff'); refreshUI(); }
+    });
+
+    // --- 자동수입 ---
+    setInterval(()=>{
+      const perTick = state.autoCount*1 + state.drillCount*10;
+      if(perTick>0){
+        state.gold += perTick;
+        state.totalGold += perTick;
+        spawnFloating('+'+perTick,40+Math.random()*20,80);
+        refreshUI();
+      }
+    },1000);
+
+    // --- 보스 시스템 ---
+    function createBoss(){
+      // create a boss scaled by player's progress
+      const difficulty = Math.max(1, Math.floor(Math.log10(Math.max(10,state.totalGold))/1.2));
+      const maxHp = 500 * (1 + difficulty*0.8); // e.g., 500,900, etc
+      const reward = Math.floor(500 * (1 + difficulty*0.6));
+      const prestigeReward = Math.max(1, Math.floor(1 + difficulty/2));
+      const boss = {
+        id: 'boss_' + Date.now(),
+        name: ['작은 드래곤','화염 골렘','거대한 마물','고대 드래곤'][Math.min(3,difficulty)],
+        maxHp,
+        hp: maxHp,
+        reward,
+        prestigeReward,
+        alive:true,
+        endsAt: Date.now() + (60 * 60 * 1000), // default 60 min fallback
+        kills:0
+      };
+      // set a 60 second raid window (short for testing). For real gameplay, could be 120-180s.
+      boss.endsAt = Date.now() + (90 * 1000); // 90s to defeat
+      state.boss = boss;
+      logEvent(`${boss.name} 출현! 처치하면 ${boss.reward}G, 환생포인트 ${boss.prestigeReward} 획득`);
+      refreshUI();
+    }
+
+    // spawn boss every 3~5 minutes (for testing you can lower it)
+    setInterval(()=>{
+      // only spawn if no boss alive
+      if(!state.boss || !state.boss.alive){
+        if(Math.random() < 0.6){ // 60% chance to spawn at interval
+          createBoss();
+        }
+      }
+    }, 180000 + Math.random()*120000); // 180k-300k ms
+
+    // attack boss
+    attackBossBtn.addEventListener('click', ()=>{
+      if(!state.boss || !state.boss.alive) return;
+      // damage = clickPower + maybe auto contribution
+      let dmg = state.clickPower;
+      if(Math.random()*100 < state.critChance){ dmg *= 2; spawnFloating('CRIT DMG '+Math.floor(dmg), 55+Math.random()*20, 50+Math.random()*20,'#ffef00'); }
+      state.boss.hp -= dmg;
+      spawnFloating('-'+Math.floor(dmg), 55+Math.random()*20, 50+Math.random()*20,'#ff9');
+      if(state.boss.hp <= 0){
+        // boss defeated
+        state.boss.alive = false;
+        state.boss.kills = (state.boss.kills || 0) + 1;
+        state.gold += state.boss.reward;
+        state.totalGold += state.boss.reward;
+        state.prestigePts += state.boss.prestigeReward;
+        spawnFloating(`Boss +${state.boss.reward}`, 50,40,'#ffd700');
+        logEvent(`${state.boss.name} 처치! +${state.boss.reward}G, +${state.boss.prestigeReward} 환생포인트`);
+        // mark boss-kill achievement
+        checkQuestsAndAch();
+        refreshUI();
+        // remove boss UI after short delay
+        setTimeout(()=>{ state.boss = null; refreshUI(); }, 3000);
+      } else {
+        refreshUI();
+      }
+    });
+
+    giveUpBossBtn.addEventListener('click', ()=>{
+      if(!state.boss || !state.boss.alive) return;
+      if(confirm('보스를 포기하시겠습니까?')){ state.boss.alive=false; state.boss=null; logEvent('보스 도망감'); refreshUI(); }
+    });
+
+    // boss timer tick: check end time
+    setInterval(()=>{
+      if(state.boss && state.boss.alive){
+        if(Date.now() >= state.boss.endsAt){
+          // time up, boss escapes
+          logEvent(`${state.boss.name}이 도망갔습니다...`);
+          state.boss.alive=false;
+          state.boss=null;
+          refreshUI();
+        }
+      }
+    }, 1000);
+
+    // --- random bonus box (smaller interval for more interaction) ---
+    function spawnRandomBox(){
+      if(Math.random() < 0.25){
+        const box = document.createElement('div');
+        box.className = 'floating-box';
+        box.textContent = '보너스 상자! 클릭!';
+        const x = 10 + Math.random()*70;
+        const y = 20 + Math.random()*60;
+        box.style.left = x + '%';
+        box.style.top = y + '%';
+        document.getElementById('playArea').appendChild(box);
+        const timeout = setTimeout(()=>{ box.remove(); }, 12000);
+        box.addEventListener('click', ()=>{
+          clearTimeout(timeout);
+          const reward = Math.floor(Math.random()*800)+100;
+          state.gold += reward;
+          state.totalGold += reward;
+          spawnFloating('Box +'+reward, x, y, '#ffd700');
+          logEvent(`상자 발견! +${reward}G`);
+          box.remove();
+          refreshUI();
+        });
+      }
+    }
+    setInterval(spawnRandomBox, 20000 + Math.random()*20000);
+
+    // --- 출석 보상 ---
+    document.getElementById('claimDaily')?.addEventListener('click', ()=>{
+      const today = new Date().toDateString();
+      if(localStorage.getItem('gold_clicker_daily') === today){ alert('이미 오늘 출석을 했습니다.'); return; }
+      localStorage.setItem('gold_clicker_daily', today);
+      const reward = 200 + Math.floor(Math.random()*300);
+      state.gold += reward;
+      state.totalGold += reward;
+      logEvent(`출석 보상: +${reward}G`);
+      refreshUI();
+    });
+
+    // --- achievements periodic check ---
+    function checkAchievements(){
+      state.achievements.forEach(a=>{
+        if(!a.done){
+          if(a.id==='a1' && state.totalClicks>=1){ a.done=true; state.gold+=a.reward; logEvent(`업적 달성: ${a.desc}`); }
+          if(a.id==='a2' && state.totalGold>=10000){ a.done=true; state.gold+=a.reward; logEvent(`업적 달성: ${a.desc}`); }
+          if(a.id==='a3' && state.totalClicks>=1000){ a.done=true; state.gold+=a.reward; logEvent(`업적 달성: ${a.desc}`); }
+          if(a.id==='a4' && a.done===false && state.boss?.kills>=1){ a.done=true; state.gold+=a.reward; logEvent(`업적 달성: ${a.desc}`); }
+        }
+      });
+    }
+
+    // --- prestige (simple) ---
+    document.getElementById('doPrestige').addEventListener('click', ()=>{
+      if(state.totalGold < 10000 && state.gold < 10000){ alert('환생하려면 총 골드(또는 현재 골드)가 10,000 이상 필요합니다.'); return; }
+      if(!confirm('환생하면 현재 진행은 초기화됩니다. 환생 포인트를 받으시겠습니까?')) return;
+      const pts = Math.floor((state.totalGold || state.gold) / 10000) + 1;
+      state.prestigePts += pts;
+      state.prestigeCount++;
+      // reset most progression but not prestigePts
+      state.gold=0; state.clickPower=1; state.autoCount=0; state.drillCount=0; state.critLevel=0;
+      state.totalClicks=0; state.totalGold=0;
+      state.quests.forEach(q=>q.done=false); state.achievements.forEach(a=>a.done=false);
+      logEvent(`환생 성공! +${pts} 환생포인트`);
+      refreshUI();
+    });
+
+    // --- background stage update ---
+    function updateBackground(){
+      const t = Math.min(1, Math.log10(Math.max(1, state.totalGold))/6);
+      bgStage.style.background = `radial-gradient(circle at 20% 20%, rgba(255,215,0,${0.06*t}), transparent 20%), radial-gradient(circle at 80% 80%, rgba(96,165,250,${0.03*t}), transparent 30%)`;
+      bgStage.style.transform = `scale(${1 + t*0.06})`;
+    }
+
+    // --- event log + toast ---
+    function logEvent(txt){
+      notice.textContent = txt;
+      spawnFloating(txt, 50+Math.random()*20, 20+Math.random()*10, '#fff');
+      // also write to console for debugging
+      console.log('[EVENT]', txt);
+    }
+
+    // --- saving / loading ---
+    function saveGame(){
+      const data = {...state, savedAt: Date.now()};
+      // Remove functions and DOM from state by shallow copy of primitives only
+      const safe = {
+        gold: state.gold, clickPower: state.clickPower, autoCount: state.autoCount, drillCount: state.drillCount,
+        critLevel: state.critLevel, totalClicks: state.totalClicks, totalGold: state.totalGold,
+        startTime: state.startTime, quests: state.quests, achievements: state.achievements,
+        prestigePts: state.prestigePts, prestigeCount: state.prestigeCount
+      };
+      localStorage.setItem('gold_clicker_boss', JSON.stringify({...safe, savedAt: Date.now()}));
+      savedEl.textContent = new Date().toLocaleString();
+    }
+    function loadGame(){
+      const raw = localStorage.getItem('gold_clicker_boss');
+      if(raw) try{
+        const p = JSON.parse(raw);
+        Object.assign(state, p);
+        state.startTime = state.startTime || Date.now();
+        savedEl.textContent = p.savedAt ? new Date(p.savedAt).toLocaleString() : '-';
+      }catch(e){ console.error('로드 실패', e); }
+      refreshUI();
+    }
+
+    document.getElementById('saveBtn').addEventListener('click', saveGame);
+    document.getElementById('loadBtn').addEventListener('click', loadGame);
+    document.getElementById('resetBtn').addEventListener('click', ()=>{ if(confirm('게임을 초기화하시겠어요? 저장된 데이터도 삭제됩니다.')){ localStorage.removeItem('gold_clicker_boss'); location.reload(); } });
+
+    // --- automatic saves and game ticks ---
+    setInterval(()=>{ saveGame(); checkQuestsAndAch(); checkAchievements(); refreshUI(); }, 30000);
+    setInterval(()=>{ checkQuestsAndAch(); checkAchievements(); refreshUI(); }, 1000);
+
+    // --- boss spawn initial (give one spawn shortly for testing) ---
+    setTimeout(()=>{ createBoss(); }, 5000);
+
+    // --- initial load/refresh ---
+    loadGame();
+    refreshUI();
+    logEvent('보스 레이드 시스템이 추가되었습니다!');
+
+  </script>
+</body>
+</html>
